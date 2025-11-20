@@ -1,0 +1,5 @@
+{
+  "name": "AI競賽即時排行榜",
+  "description": "A dynamic student leaderboard with CSV import, real-time score editing, and AI-powered analysis.",
+  "requestFramePermissions": []
+}
