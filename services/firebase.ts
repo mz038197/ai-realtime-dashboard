@@ -1,5 +1,17 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  onSnapshot, 
+  writeBatch,
+  query,
+  getDocs
+} from 'firebase/firestore';
+import { Student } from '../types';
 
 export interface User {
   uid: string;
@@ -23,17 +35,17 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// Check getApps() to prevent double-initialization in hot-reload environments
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
+const auth = firebaseAuth.getAuth(app);
+const db = getFirestore(app); // Initialize Firestore
+const provider = new firebaseAuth.GoogleAuthProvider();
+
+// --- Auth Functions ---
 
 export const loginWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, provider);
+    const result = await firebaseAuth.signInWithPopup(auth, provider);
     const user = result.user;
-    
-    // Return our custom User interface
     return {
         uid: user.uid,
         displayName: user.displayName,
@@ -48,14 +60,14 @@ export const loginWithGoogle = async () => {
 
 export const logout = async () => {
   try {
-    await signOut(auth);
+    await firebaseAuth.signOut(auth);
   } catch (error) {
     console.error("Error logging out", error);
   }
 };
 
 export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
-  return onAuthStateChanged(auth, (firebaseUser) => {
+  return firebaseAuth.onAuthStateChanged(auth, (firebaseUser) => {
     if (firebaseUser) {
       const user: User = {
         uid: firebaseUser.uid,
@@ -68,4 +80,53 @@ export const subscribeToAuthChanges = (callback: (user: User | null) => void) =>
       callback(null);
     }
   });
+};
+
+// --- Firestore Database Functions ---
+
+/**
+ * Subscribes to the user's students collection in real-time.
+ */
+export const subscribeToStudents = (uid: string, callback: (students: Student[]) => void) => {
+  const studentsRef = collection(db, 'users', uid, 'students');
+  
+  // Listen for real-time updates
+  return onSnapshot(studentsRef, (snapshot) => {
+    const students: Student[] = [];
+    snapshot.forEach((doc) => {
+      students.push(doc.data() as Student);
+    });
+    callback(students);
+  });
+};
+
+/**
+ * Overwrites the current list with new students (used for CSV import or AI generation).
+ * This performs a batch operation: delete all existing -> add new.
+ */
+export const overwriteStudents = async (uid: string, newStudents: Student[]) => {
+  const batch = writeBatch(db);
+  const studentsRef = collection(db, 'users', uid, 'students');
+
+  // 1. Get all current docs to delete them (Firestore doesn't have a "delete collection" method for clients)
+  const currentDocs = await getDocs(query(studentsRef));
+  currentDocs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+
+  // 2. Add new students
+  newStudents.forEach((student) => {
+    const docRef = doc(studentsRef, student.id);
+    batch.set(docRef, student);
+  });
+
+  await batch.commit();
+};
+
+/**
+ * Updates a single student's score.
+ */
+export const updateStudentScore = async (uid: string, studentId: string, newScore: number) => {
+  const docRef = doc(db, 'users', uid, 'students', studentId);
+  await updateDoc(docRef, { score: newScore });
 };

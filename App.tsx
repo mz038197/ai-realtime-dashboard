@@ -1,7 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Student, Stats } from './types';
 import { generateSampleClass, analyzePerformance } from './services/geminiService';
-import { loginWithGoogle, logout, subscribeToAuthChanges, User } from './services/firebase';
+import { 
+  loginWithGoogle, 
+  logout, 
+  subscribeToAuthChanges, 
+  User,
+  subscribeToStudents,
+  overwriteStudents,
+  updateStudentScore
+} from './services/firebase';
 import { FileUpload } from './components/FileUpload';
 import { Row } from './components/Row';
 import { StatsCard } from './components/StatsCard';
@@ -27,6 +35,20 @@ const App: React.FC = () => {
     });
     return () => unsubscribe();
   }, []);
+
+  // Initialize Firestore Data Listener
+  useEffect(() => {
+    if (user) {
+      // When user is logged in, subscribe to their data in Firestore
+      const unsubscribe = subscribeToStudents(user.uid, (data) => {
+        setStudents(data);
+      });
+      return () => unsubscribe();
+    } else {
+      // Clear data on logout
+      setStudents([]);
+    }
+  }, [user]);
 
   // Sort students automatically by score (descending)
   const sortedStudents = useMemo(() => {
@@ -57,25 +79,36 @@ const App: React.FC = () => {
     };
   }, [students]);
 
-  const handleCSVLoaded = (data: { name: string; score: number }[]) => {
+  const handleCSVLoaded = async (data: { name: string; score: number }[]) => {
+    if (!user) return;
+    
     const newStudents: Student[] = data.map((item, idx) => ({
       id: `csv-${Date.now()}-${idx}`,
       name: item.name,
       score: item.score,
     }));
-    setStudents(newStudents);
-    setAiAnalysis(null); // Reset analysis on new data
+
+    try {
+      // Save to Firestore instead of local state
+      await overwriteStudents(user.uid, newStudents);
+      setAiAnalysis(null); // Reset analysis on new data
+    } catch (error) {
+      console.error("Failed to save CSV data", error);
+      alert("Failed to save data to the database.");
+    }
   };
 
   const handleGenerateAI = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
       const data = await generateSampleClass(10);
-      setStudents(data);
+      // Save to Firestore instead of local state
+      await overwriteStudents(user.uid, data);
       setAiAnalysis(null);
     } catch (error) {
       console.error("Failed to generate", error);
-      alert("Failed to generate AI data. Please check your API Key.");
+      alert("Failed to generate AI data or save to database.");
     } finally {
       setIsLoading(false);
     }
@@ -94,10 +127,16 @@ const App: React.FC = () => {
     }
   };
 
-  const updateScore = (id: string, newScore: number) => {
-    setStudents(prev => 
-      prev.map(s => s.id === id ? { ...s, score: newScore } : s)
-    );
+  const updateScore = async (id: string, newScore: number) => {
+    if (!user) return;
+    // Optimistic update handled by Firestore subscription, 
+    // but we trigger the DB update here
+    try {
+      await updateStudentScore(user.uid, id, newScore);
+    } catch (error) {
+      console.error("Failed to update score", error);
+      alert("Failed to update score in database.");
+    }
   };
 
   const exportCSV = () => {
