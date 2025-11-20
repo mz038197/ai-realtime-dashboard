@@ -26,6 +26,7 @@ const App: React.FC = () => {
   // Auth State
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Initialize Auth Listener
   useEffect(() => {
@@ -152,6 +153,7 @@ const App: React.FC = () => {
   };
 
   const handleLogin = async () => {
+    setLoginError(null);
     try {
       await loginWithGoogle();
     } catch (error: any) {
@@ -159,26 +161,22 @@ const App: React.FC = () => {
       
       if (error.code === 'auth/unauthorized-domain') {
         const domain = window.location.hostname;
-        alert(
-          `Login Failed: Domain Not Authorized\n\n` +
-          `The domain "${domain}" is not whitelisted in your Firebase project.\n\n` +
-          `To fix this:\n` +
-          `1. Go to the Firebase Console > Authentication > Settings > Authorized Domains\n` +
-          `2. Add "${domain}" to the list\n\n` +
-          `Note: If you haven't set up your own Firebase project yet, update 'services/firebase.ts' with your own config.`
+        setLoginError(
+          `Domain "${domain}" is not authorized.\n\n` +
+          `Go to Firebase Console > Authentication > Settings > Authorized Domains and add "${domain}".`
         );
       } else if (error.code === 'auth/operation-not-supported-in-this-environment') {
-         alert(
-           "Login Failed: Environment Not Supported\n\n" +
-           "This error usually happens in preview environments that restrict browser storage or use http instead of https.\n\n" +
-           "Try opening this app in a new tab/window, or ensure you are running on https (or localhost)."
+         setLoginError(
+           "Environment Not Supported.\n" +
+           "Ensure you are running on HTTPS or Localhost. Private browsing mode might also cause this."
          );
       } else if (error.code === 'auth/popup-closed-by-user') {
-        // User closed popup, do nothing
-      } else if (error.code === 'auth/invalid-api-key' || error.message.includes('API Key')) {
-        alert("Login Failed: Invalid Configuration\n\nPlease check your 'services/firebase.ts' file.");
+        // User closed popup, do nothing or show mild message
+        setLoginError("Login cancelled.");
+      } else if (error.code === 'auth/invalid-api-key' || error.message?.includes('API Key')) {
+        setLoginError("Invalid Firebase Configuration. Please check services/firebase.ts.");
       } else {
-        alert(`Login failed: ${error.message}`);
+        setLoginError(`Login failed: ${error.message}`);
       }
     }
   };
@@ -193,7 +191,7 @@ const App: React.FC = () => {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} error={loginError} />;
   }
 
   // Authenticated Dashboard

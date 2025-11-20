@@ -1,11 +1,12 @@
 import React from 'react';
-import { Trophy, Sparkles } from 'lucide-react';
+import { Trophy, Sparkles, AlertCircle } from 'lucide-react';
 
 interface LoginPageProps {
   onLogin: () => void;
+  error?: string | null;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, error }) => {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
        {/* Background decorations */}
@@ -25,6 +26,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           <p className="text-slate-500 mb-8 text-lg leading-relaxed">
             Sign in to manage scores, generate AI insights, and track class performance in real-time.
           </p>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl text-left flex gap-3">
+              <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+              <div className="text-sm text-red-700 whitespace-pre-wrap font-medium">
+                {error}
+              </div>
+            </div>
+          )}
 
           <button 
             onClick={onLogin}

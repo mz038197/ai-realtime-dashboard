@@ -1,5 +1,11 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import * as firebaseAuth from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged 
+} from 'firebase/auth';
 import { 
   getFirestore, 
   collection, 
@@ -36,15 +42,15 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth = firebaseAuth.getAuth(app);
+const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
-const provider = new firebaseAuth.GoogleAuthProvider();
+const provider = new GoogleAuthProvider();
 
 // --- Auth Functions ---
 
 export const loginWithGoogle = async () => {
   try {
-    const result = await firebaseAuth.signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
     const user = result.user;
     return {
         uid: user.uid,
@@ -60,14 +66,14 @@ export const loginWithGoogle = async () => {
 
 export const logout = async () => {
   try {
-    await firebaseAuth.signOut(auth);
+    await signOut(auth);
   } catch (error) {
     console.error("Error logging out", error);
   }
 };
 
 export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
-  return firebaseAuth.onAuthStateChanged(auth, (firebaseUser) => {
+  return onAuthStateChanged(auth, (firebaseUser) => {
     if (firebaseUser) {
       const user: User = {
         uid: firebaseUser.uid,
