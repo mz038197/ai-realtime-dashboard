@@ -1,6 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Student } from '../types';
-import { GEMINI_MODEL_FLASH, getRandomAvatar } from '../constants';
+import { GEMINI_MODEL_FLASH } from '../constants';
 
 // Initialize API safely
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -37,7 +37,6 @@ export const generateSampleClass = async (count: number = 10): Promise<Student[]
       id: `gen-${Date.now()}-${index}`,
       name: item.name,
       score: item.score,
-      avatar: getRandomAvatar(), // Assign a random cute face
     }));
   } catch (error) {
     console.error("Gemini generation error:", error);

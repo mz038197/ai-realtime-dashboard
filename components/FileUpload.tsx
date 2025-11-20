@@ -1,9 +1,8 @@
 import React, { useRef } from 'react';
 import { Upload } from 'lucide-react';
-import { getRandomAvatar } from '../constants';
 
 interface FileUploadProps {
-  onDataLoaded: (data: { name: string; score: number; avatar: string }[]) => void;
+  onDataLoaded: (data: { name: string; score: number }[]) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
@@ -26,7 +25,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
 
   const parseCSV = (csvText: string) => {
     const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== '');
-    const parsedData: { name: string; score: number; avatar: string }[] = [];
+    const parsedData: { name: string; score: number }[] = [];
 
     lines.forEach((line, index) => {
       // Simple heuristic: Skip header if it contains "name" or "score" case insensitive
@@ -43,8 +42,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onDataLoaded }) => {
         if (name) {
           parsedData.push({ 
             name, 
-            score: isNaN(score) ? 0 : score,
-            avatar: getRandomAvatar()
+            score: isNaN(score) ? 0 : score 
           });
         }
       }

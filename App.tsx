@@ -5,7 +5,8 @@ import { loginWithGoogle, logout, subscribeToAuthChanges, User } from './service
 import { FileUpload } from './components/FileUpload';
 import { Row } from './components/Row';
 import { StatsCard } from './components/StatsCard';
-import { Sparkles, RotateCcw, Download, Loader2, Search, Upload, LogIn, LogOut, User as UserIcon, Edit2, Check } from 'lucide-react';
+import { LoginPage } from './components/LoginPage';
+import { Sparkles, RotateCcw, Download, Loader2, Search, Upload, User as UserIcon } from 'lucide-react';
 
 const App: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -13,10 +14,6 @@ const App: React.FC = () => {
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // App Title State
-  const [appTitle, setAppTitle] = useState("AI競賽即時排行榜");
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
   
   // Auth State
   const [user, setUser] = useState<User | null>(null);
@@ -33,10 +30,8 @@ const App: React.FC = () => {
 
   // Sort students automatically by score (descending)
   const sortedStudents = useMemo(() => {
-    // Create a copy to avoid mutating state directly during sort (though safe in useMemo, good practice)
     const sorted = [...students].sort((a, b) => {
       if (b.score === a.score) {
-        // Tie-breaker: Alphabetical name
         return a.name.localeCompare(b.name);
       }
       return b.score - a.score;
@@ -62,12 +57,11 @@ const App: React.FC = () => {
     };
   }, [students]);
 
-  const handleCSVLoaded = (data: { name: string; score: number; avatar: string }[]) => {
+  const handleCSVLoaded = (data: { name: string; score: number }[]) => {
     const newStudents: Student[] = data.map((item, idx) => ({
       id: `csv-${Date.now()}-${idx}`,
       name: item.name,
       score: item.score,
-      avatar: item.avatar
     }));
     setStudents(newStudents);
     setAiAnalysis(null); // Reset analysis on new data
@@ -106,12 +100,6 @@ const App: React.FC = () => {
     );
   };
 
-  const updateAvatar = (id: string, newAvatar: string) => {
-    setStudents(prev => 
-      prev.map(s => s.id === id ? { ...s, avatar: newAvatar } : s)
-    );
-  };
-
   const exportCSV = () => {
     const header = "Name,Score\n";
     const rows = sortedStudents.map(s => `${s.name},${s.score}`).join("\n");
@@ -127,90 +115,82 @@ const App: React.FC = () => {
   const handleLogin = async () => {
     try {
       await loginWithGoogle();
-    } catch (error) {
-      // Error handling is logged in service
+    } catch (error: any) {
+      console.error("Login failed", error);
+      
+      if (error.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        alert(
+          `Login Failed: Domain Not Authorized\n\n` +
+          `The domain "${domain}" is not whitelisted in your Firebase project.\n\n` +
+          `To fix this:\n` +
+          `1. Go to the Firebase Console > Authentication > Settings > Authorized Domains\n` +
+          `2. Add "${domain}" to the list\n\n` +
+          `Note: If you haven't set up your own Firebase project yet, update 'services/firebase.ts' with your own config.`
+        );
+      } else if (error.code === 'auth/operation-not-supported-in-this-environment') {
+         alert(
+           "Login Failed: Environment Not Supported\n\n" +
+           "This error usually happens in preview environments that restrict browser storage or use http instead of https.\n\n" +
+           "Try opening this app in a new tab/window, or ensure you are running on https (or localhost)."
+         );
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        // User closed popup, do nothing
+      } else if (error.code === 'auth/invalid-api-key' || error.message.includes('API Key')) {
+        alert("Login Failed: Invalid Configuration\n\nPlease check your 'services/firebase.ts' file.");
+      } else {
+        alert(`Login failed: ${error.message}`);
+      }
     }
   };
 
+  // View Selection Logic
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="animate-spin text-indigo-600" size={48} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  // Authenticated Dashboard
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <div className="max-w-4xl mx-auto">
         
         {/* Header Section */}
         <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <div className="flex-1">
-            {isEditingTitle ? (
-              <div className="flex items-center gap-2">
-                <input
-                  autoFocus
-                  type="text"
-                  value={appTitle}
-                  onChange={(e) => setAppTitle(e.target.value)}
-                  onBlur={() => setIsEditingTitle(false)}
-                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
-                  className="text-3xl md:text-4xl font-extrabold text-slate-800 border-b-2 border-indigo-500 focus:outline-none bg-transparent w-full max-w-md"
-                />
-                <button 
-                  onClick={() => setIsEditingTitle(false)}
-                  className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-                >
-                  <Check size={24} />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 group">
-                <h1 
-                  onClick={() => setIsEditingTitle(true)}
-                  className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight cursor-pointer hover:opacity-80 transition-opacity"
-                >
-                  {appTitle}
-                </h1>
-                <button
-                  onClick={() => setIsEditingTitle(true)}
-                  className="text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Edit Title"
-                >
-                  <Edit2 size={20} />
-                </button>
-              </div>
-            )}
+          <div>
+            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tight">
+              AI競賽即時排行榜
+            </h1>
             <p className="text-slate-500 mt-1">Real-time interactive student leaderboard</p>
           </div>
 
-          {/* Auth & User Profile */}
-          <div className="flex items-center gap-4">
-            {isAuthLoading ? (
-              <div className="h-10 w-20 bg-slate-200 animate-pulse rounded-lg"></div>
-            ) : user ? (
-              <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
-                {user.photoURL ? (
-                   <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full" />
-                ) : (
-                   <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
-                     <UserIcon size={16} />
-                   </div>
-                )}
-                <div className="flex flex-col">
-                   <span className="text-xs font-semibold text-slate-700 max-w-[100px] truncate">
-                     {user.displayName}
-                   </span>
-                   <button 
-                     onClick={logout}
-                     className="text-[10px] text-slate-400 hover:text-red-500 text-left flex items-center gap-1 transition-colors"
-                   >
-                     Log out
-                   </button>
-                </div>
-              </div>
+          {/* User Profile */}
+          <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-full border border-slate-200 shadow-sm">
+            {user.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName || 'User'} className="w-8 h-8 rounded-full" />
             ) : (
-              <button 
-                onClick={handleLogin}
-                className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-indigo-600 transition-all font-medium text-sm shadow-sm"
-              >
-                <LogIn size={16} />
-                Sign In
-              </button>
+                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center">
+                    <UserIcon size={16} />
+                </div>
             )}
+            <div className="flex flex-col">
+                <span className="text-xs font-semibold text-slate-700 max-w-[100px] truncate">
+                    {user.displayName || 'User'}
+                </span>
+                <button 
+                    onClick={logout}
+                    className="text-[10px] text-slate-400 hover:text-red-500 text-left flex items-center gap-1 transition-colors"
+                >
+                    Log out
+                </button>
+            </div>
           </div>
         </header>
 
@@ -302,7 +282,6 @@ const App: React.FC = () => {
                {/* Header Row */}
                <div className="flex items-center gap-4 p-4 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                   <div className="w-12 text-center">Rank</div>
-                  <div className="w-10"></div> {/* Spacer for Avatar */}
                   <div className="flex-grow">Student Details</div>
                   <div className="w-20 text-right">Score</div>
                </div>
@@ -315,11 +294,8 @@ const App: React.FC = () => {
                     <Row 
                       key={student.id} 
                       student={student} 
-                      // Calculate actual rank based on the full sorted list index (if not searching) 
-                      // or just display visual order index + 1
                       rank={index + 1} 
                       onScoreUpdate={updateScore}
-                      onAvatarUpdate={updateAvatar}
                       maxScore={100}
                     />
                   ))

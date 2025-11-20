@@ -3,7 +3,6 @@ export interface Student {
   name: string;
   score: number;
   rank?: number;
-  avatar: string; // New field for the cute face
 }
 
 export enum SortOrder {

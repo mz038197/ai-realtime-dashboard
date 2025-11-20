@@ -1,46 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Student } from '../types';
-import { Medal } from 'lucide-react';
-import { AVATAR_OPTIONS } from '../constants';
+import { Medal, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 interface RowProps {
   student: Student;
   rank: number;
   onScoreUpdate: (id: string, newScore: number) => void;
-  onAvatarUpdate: (id: string, newAvatar: string) => void;
   maxScore?: number;
 }
 
-export const Row: React.FC<RowProps> = ({ student, rank, onScoreUpdate, onAvatarUpdate, maxScore = 100 }) => {
+export const Row: React.FC<RowProps> = ({ student, rank, onScoreUpdate, maxScore = 100 }) => {
   const [localScore, setLocalScore] = useState<string>(student.score.toString());
-  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
 
-  // Sync local state if external props change
+  // Sync local state if external props change (e.g. CSV reload)
   useEffect(() => {
     setLocalScore(student.score.toString());
   }, [student.score]);
-
-  // Close picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setIsAvatarPickerOpen(false);
-      }
-    };
-
-    if (isAvatarPickerOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isAvatarPickerOpen]);
 
   const handleBlur = () => {
     let val = parseInt(localScore, 10);
     if (isNaN(val)) val = 0;
     if (val < 0) val = 0;
+    // We don't enforce max limit strictly, allowing bonus points, but standard exams usually cap at 100.
     
     setLocalScore(val.toString());
     if (val !== student.score) {
@@ -70,39 +51,10 @@ export const Row: React.FC<RowProps> = ({ student, rank, onScoreUpdate, onAvatar
   };
 
   return (
-    <div className="group flex items-center gap-4 p-4 bg-white border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0 relative">
+    <div className="group flex items-center gap-4 p-4 bg-white border-b border-slate-100 hover:bg-slate-50 transition-colors last:border-0 relative overflow-hidden">
        {/* Rank Section */}
       <div className="flex-shrink-0 w-12 flex justify-center items-center">
         {getRankIcon(rank)}
-      </div>
-
-      {/* Avatar Section */}
-      <div className="flex-shrink-0 relative" ref={pickerRef}>
-        <button 
-          onClick={() => setIsAvatarPickerOpen(!isAvatarPickerOpen)}
-          className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-full flex items-center justify-center text-xl transition-colors border border-slate-200 cursor-pointer select-none"
-          title="Change Avatar"
-        >
-          {student.avatar || '👤'}
-        </button>
-
-        {/* Avatar Picker Popover */}
-        {isAvatarPickerOpen && (
-          <div className="absolute left-0 top-full mt-2 z-50 bg-white p-2 rounded-xl shadow-xl border border-slate-200 w-64 grid grid-cols-5 gap-2 animate-in fade-in zoom-in-95 duration-100">
-            {AVATAR_OPTIONS.map((avatar) => (
-              <button
-                key={avatar}
-                onClick={() => {
-                  onAvatarUpdate(student.id, avatar);
-                  setIsAvatarPickerOpen(false);
-                }}
-                className={`w-10 h-10 flex items-center justify-center text-xl rounded-lg hover:bg-slate-100 transition-colors ${student.avatar === avatar ? 'bg-indigo-50 ring-2 ring-indigo-500' : ''}`}
-              >
-                {avatar}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Name Section */}

@@ -1,9 +1,5 @@
-
-// Note: Real Firebase imports are commented out to resolve build errors regarding missing module exports.
-// This file currently provides a Mock Auth implementation for demonstration purposes.
-
-// import { initializeApp } from 'firebase/app';
-// import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 
 export interface User {
   uid: string;
@@ -12,55 +8,64 @@ export interface User {
   photoURL: string | null;
 }
 
-// TODO: To use real Firebase, uncomment the imports above, restore the logic, and fill in your config.
-/*
+// ---------------------------------------------------------------------------
+// TODO: PASTE YOUR FIREBASE CONFIGURATION HERE
+// You can find this in the Firebase Console -> Project Settings -> General
+// ---------------------------------------------------------------------------
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000000000"
+  apiKey: "AIzaSyCTDM9wg7YVDRt7L-4b-n6lCTpJwBLj8To",
+  authDomain: "ai-realtime-dashboard.firebaseapp.com",
+  projectId: "ai-realtime-dashboard",
+  storageBucket: "ai-realtime-dashboard.firebasestorage.app",
+  messagingSenderId: "451348070658",
+  appId: "1:451348070658:web:9b6ed5da63f847bbeec21b",
+  measurementId: "G-CZL7GHZP9W"
 };
-*/
 
-// Mock Internal State
-let currentUser: User | null = null;
-const listeners: ((user: User | null) => void)[] = [];
-
-const notifyListeners = () => {
-  listeners.forEach(l => l(currentUser));
-};
+// Initialize Firebase
+// Check getApps() to prevent double-initialization in hot-reload environments
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 export const loginWithGoogle = async () => {
-  console.log("Logging in (Mock Mode)...");
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 600));
-  
-  currentUser = {
-    uid: 'mock-user-' + Date.now(),
-    displayName: 'Demo User',
-    email: 'demo@example.com',
-    photoURL: null
-  };
-  notifyListeners();
-  return currentUser;
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    
+    // Return our custom User interface
+    return {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        photoURL: user.photoURL
+    } as User;
+  } catch (error: any) {
+    console.error("Error logging in with Google", error);
+    throw error;
+  }
 };
 
 export const logout = async () => {
-  console.log("Logging out (Mock Mode)...");
-  currentUser = null;
-  notifyListeners();
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Error logging out", error);
+  }
 };
 
 export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
-  listeners.push(callback);
-  // Trigger with current state immediately
-  callback(currentUser);
-  
-  // Return unsubscribe function
-  return () => {
-    const index = listeners.indexOf(callback);
-    if (index > -1) listeners.splice(index, 1);
-  };
+  return onAuthStateChanged(auth, (firebaseUser) => {
+    if (firebaseUser) {
+      const user: User = {
+        uid: firebaseUser.uid,
+        displayName: firebaseUser.displayName,
+        email: firebaseUser.email,
+        photoURL: firebaseUser.photoURL
+      };
+      callback(user);
+    } else {
+      callback(null);
+    }
+  });
 };
