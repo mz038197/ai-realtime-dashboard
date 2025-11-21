@@ -2,8 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
@@ -56,43 +55,18 @@ provider.setCustomParameters({
 
 export const loginWithGoogle = async () => {
   try {
-    console.log("🔐 Starting Google login with redirect...");
-    // Set a flag to prevent redirect loops
-    sessionStorage.setItem('pendingRedirect', 'true');
-    await signInWithRedirect(auth, provider);
+    console.log("🔐 Starting Google login with popup...");
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    console.log("✅ Login successful:", user.email);
+    return {
+      uid: user.uid,
+      displayName: user.displayName,
+      email: user.email,
+      photoURL: user.photoURL
+    } as User;
   } catch (error: any) {
-    console.error("❌ Error starting login:", error);
-    sessionStorage.removeItem('pendingRedirect');
-    throw error;
-  }
-};
-
-// This function is called automatically by onAuthStateChanged
-// No need to manually call it
-export const checkRedirectResult = async () => {
-  try {
-    // Check if we're returning from a redirect
-    const hasPendingRedirect = sessionStorage.getItem('pendingRedirect');
-    
-    if (!hasPendingRedirect) {
-      return null; // No redirect in progress
-    }
-
-    const result = await getRedirectResult(auth);
-    
-    // Clear the flag regardless of result
-    sessionStorage.removeItem('pendingRedirect');
-    
-    if (result) {
-      console.log("✅ Redirect login successful:", result.user.email);
-      return result;
-    } else {
-      console.log("ℹ️ No redirect result found");
-      return null;
-    }
-  } catch (error: any) {
-    console.error("❌ Error checking redirect result:", error);
-    sessionStorage.removeItem('pendingRedirect');
+    console.error("❌ Login error:", error.code, error.message);
     throw error;
   }
 };
