@@ -2,7 +2,6 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   getAuth, 
   GoogleAuthProvider, 
-  signInWithPopup, 
   signInWithRedirect,
   getRedirectResult,
   signOut, 
@@ -57,29 +56,12 @@ provider.setCustomParameters({
 
 export const loginWithGoogle = async () => {
   try {
-    console.log("Starting Google login with popup...");
-    // Try popup first - it's more user-friendly for localhost
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-    console.log("Login successful:", user.email);
-    return {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL
-    } as User;
+    console.log("Starting Google login with redirect...");
+    // Use redirect instead of popup - more reliable and avoids CORS
+    await signInWithRedirect(auth, provider);
+    // Page will redirect to Google and come back automatically
   } catch (error: any) {
     console.error("Error logging in with Google", error);
-    
-    // If popup fails, provide helpful error message
-    if (error.code === 'auth/popup-blocked') {
-      alert('彈窗被瀏覽器阻擋了！請允許彈窗或檢查瀏覽器設置。');
-    } else if (error.code === 'auth/popup-closed-by-user') {
-      console.log("User closed the popup");
-    } else if (error.code === 'auth/cancelled-popup-request') {
-      console.log("Popup request cancelled");
-    }
-    
     throw error;
   }
 };
