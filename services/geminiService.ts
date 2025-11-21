@@ -2,8 +2,13 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Student } from '../types';
 import { GEMINI_MODEL_FLASH } from '../constants';
 
-// Initialize API safely
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization - only create AI instance when needed
+const getAI = () => {
+  if (!process.env.API_KEY) {
+    throw new Error("Gemini API Key is not configured. Please set GEMINI_API_KEY in .env.local to use AI features.");
+  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 export const generateSampleClass = async (count: number = 10): Promise<Student[]> => {
   if (!process.env.API_KEY) {
@@ -12,7 +17,7 @@ export const generateSampleClass = async (count: number = 10): Promise<Student[]
   }
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: GEMINI_MODEL_FLASH,
       contents: `Generate a list of ${count} fictional students with diverse names and realistic test scores (0-100).`,
       config: {
@@ -50,7 +55,7 @@ export const analyzePerformance = async (students: Student[]): Promise<string> =
   const studentSummary = students.map(s => `${s.name}: ${s.score}`).join(', ');
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: GEMINI_MODEL_FLASH,
       contents: `Analyze the following class performance data. Provide a brief, encouraging summary (max 3 sentences) highlighting the top performer and the general class average trend. Data: ${studentSummary}`,
     });

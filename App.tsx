@@ -5,6 +5,7 @@ import {
   loginWithGoogle, 
   logout, 
   subscribeToAuthChanges, 
+  checkRedirectResult,
   User,
   subscribeToStudents,
   overwriteStudents,
@@ -27,6 +28,13 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Check for redirect result on page load
+  useEffect(() => {
+    checkRedirectResult().catch(error => {
+      console.error("Redirect result error:", error);
+    });
+  }, []);
 
   // Initialize Auth Listener
   useEffect(() => {

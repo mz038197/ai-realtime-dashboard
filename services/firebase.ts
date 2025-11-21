@@ -3,6 +3,8 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
@@ -46,12 +48,20 @@ const auth = getAuth(app);
 const db = getFirestore(app); // Initialize Firestore
 const provider = new GoogleAuthProvider();
 
+// Add these settings to improve compatibility
+provider.setCustomParameters({
+  prompt: 'select_account'  // Always show account selection
+});
+
 // --- Auth Functions ---
 
 export const loginWithGoogle = async () => {
   try {
+    console.log("Starting Google login with popup...");
+    // Try popup first - it's more user-friendly for localhost
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
+    console.log("Login successful:", user.email);
     return {
         uid: user.uid,
         displayName: user.displayName,
@@ -60,7 +70,31 @@ export const loginWithGoogle = async () => {
     } as User;
   } catch (error: any) {
     console.error("Error logging in with Google", error);
+    
+    // If popup fails, provide helpful error message
+    if (error.code === 'auth/popup-blocked') {
+      alert('彈窗被瀏覽器阻擋了！請允許彈窗或檢查瀏覽器設置。');
+    } else if (error.code === 'auth/popup-closed-by-user') {
+      console.log("User closed the popup");
+    } else if (error.code === 'auth/cancelled-popup-request') {
+      console.log("Popup request cancelled");
+    }
+    
     throw error;
+  }
+};
+
+// Check for redirect result on page load (kept for compatibility)
+export const checkRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      console.log("Redirect login successful:", result.user.email);
+    }
+    return result;
+  } catch (error: any) {
+    console.error("Error checking redirect result", error);
+    return null;
   }
 };
 
