@@ -56,27 +56,44 @@ provider.setCustomParameters({
 
 export const loginWithGoogle = async () => {
   try {
-    console.log("Starting Google login with redirect...");
-    // Use redirect instead of popup - more reliable and avoids CORS
+    console.log("🔐 Starting Google login with redirect...");
+    // Set a flag to prevent redirect loops
+    sessionStorage.setItem('pendingRedirect', 'true');
     await signInWithRedirect(auth, provider);
-    // Page will redirect to Google and come back automatically
   } catch (error: any) {
-    console.error("Error logging in with Google", error);
+    console.error("❌ Error starting login:", error);
+    sessionStorage.removeItem('pendingRedirect');
     throw error;
   }
 };
 
-// Check for redirect result on page load (kept for compatibility)
+// This function is called automatically by onAuthStateChanged
+// No need to manually call it
 export const checkRedirectResult = async () => {
   try {
-    const result = await getRedirectResult(auth);
-    if (result) {
-      console.log("Redirect login successful:", result.user.email);
+    // Check if we're returning from a redirect
+    const hasPendingRedirect = sessionStorage.getItem('pendingRedirect');
+    
+    if (!hasPendingRedirect) {
+      return null; // No redirect in progress
     }
-    return result;
+
+    const result = await getRedirectResult(auth);
+    
+    // Clear the flag regardless of result
+    sessionStorage.removeItem('pendingRedirect');
+    
+    if (result) {
+      console.log("✅ Redirect login successful:", result.user.email);
+      return result;
+    } else {
+      console.log("ℹ️ No redirect result found");
+      return null;
+    }
   } catch (error: any) {
-    console.error("Error checking redirect result", error);
-    return null;
+    console.error("❌ Error checking redirect result:", error);
+    sessionStorage.removeItem('pendingRedirect');
+    throw error;
   }
 };
 
@@ -91,6 +108,7 @@ export const logout = async () => {
 export const subscribeToAuthChanges = (callback: (user: User | null) => void) => {
   return onAuthStateChanged(auth, (firebaseUser) => {
     if (firebaseUser) {
+      console.log("👤 User authenticated:", firebaseUser.email);
       const user: User = {
         uid: firebaseUser.uid,
         displayName: firebaseUser.displayName,
@@ -99,6 +117,7 @@ export const subscribeToAuthChanges = (callback: (user: User | null) => void) =>
       };
       callback(user);
     } else {
+      console.log("👤 No user authenticated");
       callback(null);
     }
   });

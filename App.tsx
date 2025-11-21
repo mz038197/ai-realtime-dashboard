@@ -5,7 +5,6 @@ import {
   loginWithGoogle, 
   logout, 
   subscribeToAuthChanges, 
-  checkRedirectResult,
   User,
   subscribeToStudents,
   overwriteStudents,
@@ -29,16 +28,11 @@ const App: React.FC = () => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [loginError, setLoginError] = useState<string | null>(null);
 
-  // Check for redirect result on page load
+  // Initialize Auth Listener - onAuthStateChanged automatically handles redirect results
   useEffect(() => {
-    checkRedirectResult().catch(error => {
-      console.error("Redirect result error:", error);
-    });
-  }, []);
-
-  // Initialize Auth Listener
-  useEffect(() => {
+    console.log("🔍 Setting up auth listener...");
     const unsubscribe = subscribeToAuthChanges((currentUser) => {
+      console.log("✅ Auth state changed:", currentUser?.email || "logged out");
       setUser(currentUser);
       setIsAuthLoading(false);
     });
